@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+
+<html lang="en" data-coreui-theme="dark">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <meta name="theme-color" content="#ffffff">
+
+  <title>Train Vis</title>
+
+</head>
+
+<body>
+
+  <div class="">
+    <header>Visualizing Train Disruptions</header>
+
+    <div class="">
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-8 pe-0">
+
+            <div class="row">
+              <div class="map-container">
+
+                <div id="map"></div>
+  
+                <div class="clock">
+                  <div id="date"></div>
+                </div>
+  
+                <div class="slider">
+                  <input type="range" min="0" max="1440" value="0" id="slider">
+                  <span class="slider-value">00:00</span>
+                </div>
+  
+                <div class="info-panel">
+                  <div class="info-container">
+                    <div class="d-flex justify-content-between">
+                      <div></div>
+                      <div class="train-no">Train no. <span id="trainNo"></span></div>
+                      <button class="btn btn-danger" id="closeInfoPanel"><span>x</span></button>
+                    </div>
+                    <div class="od">
+                      <span id="origin"></span>
+                      <img src="assets/icons/arrow.png" height="30px">
+                      <span id="destination"></span>
+                    </div>
+                    <div class="badge rounded-pill text-bg-danger py-2" id="completeCancellation">Completely cancelled</div>
+                    <div class="badge rounded-pill text-bg-danger py-2" id="partlyCancellation">Partly cancelled</div>
+  
+                    <div><label>Disrupted Segment:</label> <span id="rdtLines"></span></div>
+                    <div><label>Disrupted Stations:</label> <span id="disruptedStations"></span></div>
+                    <div id="cancelledStationsField"><label>Cancelled Stations:</label> <span id="cancelledStations"></span></div>
+                    <div><label>Cause:</label> <span id="cause"></span></div>
+                    <div><label>Cause group:</label> <span id="causeGroup"></span></div>
+                    <div id="maxDelayField"><label>Maximum Delay:</label> <span id="maxDelay"></span> mins</div>
+                  </div>
+                </div>
+
+                <div class="dis-info-panel">
+                  <div class="dis-info-container">
+                    <div class="d-flex justify-content-end">
+                      <button class="btn btn-danger" id="discloseInfoPanel"><span>x</span></button>
+                    </div>
+                    <div><label>From:</label> <span id="from"></span></div>
+                    <div><label>To:</label> <span id="to"></span></div>
+                    <div><label>Cause:</label> <span id="discause"></span></div>
+                    <div><label>Cause group:</label> <span id="discauseGroup"></span></div>
+                    <div id="disruptionDuration"><label>Duration:</label> <span id="duration"></span> mins</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="row mt-1">
+              <div>
+                <div class="card">
+                  <div class="card-header">Disruption Types</div>
+                  <div class="card-body">
+                    <div id="lineChart"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+           
+          </div>
+
+          <div class="col-4">
+
+            <div class="row">
+              <div class="col-4">
+                <div class="legend-panel">
+                  <h6 class="text-center">Legend</h6>
+                  <div class="legend-item">
+                    <div class="symbol accidents"></div> Accidents
+                  </div>
+                  <div class="legend-item">
+                    <div class="symbol external"></div> External
+                  </div>
+                  <div class="legend-item">
+                    <div class="symbol infra"></div> Infrastructure
+                  </div>
+                  <div class="legend-item">
+                    <div class="symbol logistical"></div> Logistical
+                  </div>
+                  <div class="legend-item">
+                    <div class="symbol rollingstock"></div> Rolling stock
+                  </div>
+                  <div class="legend-item">
+                    <div class="symbol staff"></div> Staff
+                  </div>
+                  <div class="legend-item">
+                    <div class="symbol weather"></div> Weather
+                  </div>
+                  <div class="legend-item">
+                    <div class="symbol unknown"></div> Unknown
+                  </div>
+                  <div class="legend-item">
+                    <div class="symbol cancelled"></div> Cancelled
+                  </div>
+                  <div class="legend-item">
+                    <div class="symbol partial"></div> Partial Cancelled
+                  </div>
+                  
+                  <h6 class="text-center mt-1">Delays</h6>
+                  <div class="delay-legend">
+                    <div class="bar">
+                      <div class="bar-symbol small"></div> &lt;5min
+                    </div>
+                    <div class="bar">
+                      <div class="bar-symbol medium"></div> 5-15min
+                    </div>
+                    <div class="bar">
+                      <div class="bar-symbol large"></div> &gt;15min
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-8">
+                <div class="card h-100">
+                  <div class="card-header">Pick a date</div>
+                  <div class="card-body cal-widget">
+                    <div id="cal-heatmap" class="px-3"></div>
+                    <div id="cal-heatmap-legend"></div>
+                    <div class="cal-buttons">
+                      <button id="prev-btn" class="btn btn-primary">Previous</button>
+                      <button id="next-btn" class="btn btn-primary">Next</button>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-3 gap-2">
+                      <button class="btn btn-primary w-100" id="playPauseButton">Play</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row mt-3" id="mareyChartContainer">
+              <div class="col">
+                <div class="card">
+                  <div class="card-header">Marey Graph</div>
+                  <div class="card-body">
+                    <div id="mareyChart"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+</body>
+
+</html>

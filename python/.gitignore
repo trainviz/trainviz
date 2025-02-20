@@ -1,0 +1,11 @@
+logs/
+build/
+dist/
+output/
+data/
+.idea
+__pycache__/
+.env
+overpass/.idea
+overpass/data
+overpass/output

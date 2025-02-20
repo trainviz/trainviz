@@ -1,0 +1,333 @@
+@import "theme.css";
+@import "leaflet/dist/leaflet.css";
+@import "leaflet-pulse-icon/src/L.Icon.Pulse.css";
+@import "mapbox-gl/dist/mapbox-gl.css";
+@import "cal-heatmap/cal-heatmap.css";
+
+body {
+    overflow: hidden;
+}
+
+header {
+    padding: 5px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.6rem;
+    background-color: #151b22;
+}
+
+/* ----------------------------------------------------------- Map elements ------------------------------------------------------------ */
+
+.map-container {
+    width: 100%;
+    height: calc(100vh - 380px);
+    position: relative;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+    outline: none;
+}
+
+.leaflet-pulsing-icon {
+    background-color: transparent !important;
+}
+
+.clock {
+    position: absolute;
+    bottom: 10px;
+    left: 20px;
+    background-color: #141414de;
+    backdrop-filter: blur(5px);
+    box-shadow: 2px 1px 10px 3px #333333ce;
+    border-radius: 10px;
+    padding: 0.3rem 0.8rem;
+    z-index: 1000;
+    text-shadow: 0 0 40px #0fa;
+}
+
+.slider {
+    z-index: 1000;
+    position: relative;
+    bottom: 70px;
+    margin: 20px 200px;
+}
+
+.slider input[type="range"] {
+    width: 100%;
+}
+
+.slider .slider-value {
+    background-color: #03a9f4;
+    width: 60px;
+    text-align: center;
+    border-radius: 10px;
+    position: absolute;
+    bottom: -20px;
+    left: calc(0% - 26px);
+    transform: translate(- calc(0% - 26px), 0%);
+}
+
+.slider .slider-value:before {
+    content: "";
+    position: absolute;
+    border-bottom: 10px solid #03a9f4;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    top: 0%;
+    left: 50%;
+    transform: translate(-50%, 0%);
+    margin-top: -5px;
+}
+
+
+/* ----------------------------------------------------------- Info panel ------------------------------------------------------------ */
+.info-panel, .dis-info-panel{
+    display: none;
+}
+
+.info-container {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 400px;
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #1e1e1ebd;
+    backdrop-filter: blur(5px);
+    border-radius: 10px;
+    box-shadow: 2px 1px 10px 3px #333333ce;
+    padding: 1rem;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 1rem;
+    text-transform: capitalize;
+}
+
+.dis-info-container {
+    position: absolute;
+    top: 10px;
+    left: 60px;
+    width: 280px;
+    background-color: #1e1e1ebd;
+    backdrop-filter: blur(5px);
+    border-radius: 10px;
+    padding: 1rem;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 1rem;
+    text-transform: capitalize;
+}
+
+.info-panel .train-no {
+    text-align: center;
+    font-weight: 600;
+}
+
+.info-panel .od {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    font-weight: 600;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #888787;
+}
+
+.info-panel label, .dis-info-panel label {
+    font-weight: 800;
+}
+
+.info-panel .badge {
+    padding: 5px;
+}
+
+#closeInfoPanel, #discloseInfoPanel {
+    width: 25px;
+    height: 25px;
+    padding: 0;
+    border-radius: 50%;
+}
+
+#closeInfoPanel span, #discloseInfoPanel span {
+    position: relative;
+    top: -1px;
+    left: 0.5px;
+}
+
+
+/* ----------------------------------------------------------- Legend panel ------------------------------------------------------------ */
+.legend-panel {
+    background-color: #141414de;
+    backdrop-filter: blur(5px);
+    box-shadow: 2px 1px 10px 3px #1f1f1fce;
+    border-radius: 8px;
+    padding: 0.5rem;
+    z-index: 1000;
+    font-size: 12px;
+}
+
+.legend-panel h6 {
+    border-bottom: 1px solid #888787;
+    padding-bottom: 5px;
+    font-size: 16px;
+}
+
+.legend-panel .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.legend-panel .legend-item .symbol {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+}
+
+.symbol.accidents {
+    background-color: #d6b34a;
+}
+
+.symbol.external {
+    background-color: #ff6f61;
+}
+
+.symbol.cancelled {
+    background-color: #b6b3b3;
+}
+
+.symbol.infra {
+    background-color: #a077c0;
+}
+
+.symbol.logistical {
+    background-color: #ff82a9;
+}
+
+.symbol.rollingstock {
+    background-color: #b82b8b;
+}
+
+.symbol.staff {
+    background-color: #34B6AC;
+}
+
+.symbol.unknown {
+    background-color: #b97a57;
+}
+
+.symbol.weather {
+    background-color: #4e75b2;
+}
+
+.symbol.partial {
+    position: relative;
+    width: 30px; /* Adjust size */
+    height: 30px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.symbol.partial::before, .symbol.partial::after {
+    content: "";
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    top: 0;
+}
+
+.symbol.partial::before {
+    left: 0;
+    background-color: #f00;
+}
+
+.symbol.partial::after {
+    right: 0;
+    background-color: #b6b3b3;
+}
+
+.delay-legend {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.delay-legend .bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.delay-legend .bar-symbol  {
+    width: 10px;
+    background-color: #888787;
+}
+
+.delay-legend .bar-symbol.small {
+    height: 10px;
+}
+
+.delay-legend .bar-symbol.medium {
+    height: 20px;
+}
+
+.delay-legend .bar-symbol.large {
+    height: 30px;
+}
+
+
+/* ----------------------------------------------------------- Heatmap widget ------------------------------------------------------------ */
+.cal-widget {
+    overflow-x: hidden;
+}
+
+#cal-heatmap {
+    display: flex;
+    justify-content: center;
+}
+
+#cal-heatmap .ch-domain-text {
+    font-size: 12px !important;
+    font-weight: bold !important;
+}
+
+#cal-heatmap-legend {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+}
+
+#cal-heatmap-legend text {
+    font-size: 14px;
+}
+
+.cal-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+}
+
+
+/* ----------------------------------------------------------- Marey & line chart ------------------------------------------------------------ */
+#mareyChartContainer {
+    display: none;
+}
+
+#mareyChart {
+    width: 100%;
+    height: calc(100vh - 507px)
+}
+
+#lineChart {
+    width: 100%;
+    height: 250px;
+}

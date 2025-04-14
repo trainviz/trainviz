@@ -14,7 +14,7 @@ export class Train {
 
     /**
      - Key - Station name
-     - Value - { barGap: number, position: L.LatLng, bearing: number }
+     - Value - { position: L.LatLng, bearing: number, bars: L.Marker[] }
      */
     destinations = new Map();
 
@@ -25,18 +25,33 @@ export class Train {
 
     pulseMarker;
 
+    /** Disruption type currently enabled from line chart */
+    disruptionType = "";
+
+    stationCoords = new Map();
+    stationLabels = [];
+    stationBounds = [];
+
     /**
      * 
      * @param {L.Map} map 
      * @param {RailwayNetwork} railwayNetwork 
      * @param {DisruptedLines} disruptedLines 
+     * @param stops 
      */
-    constructor(map, railwayNetwork, disruptedLines) {
+    constructor(map, railwayNetwork, disruptedLines, stops) {
         this.map = map;
         this.disruptedLines = disruptedLines;
         this.railwayNetwork = railwayNetwork;
         this.trainGroup = L.featureGroup().addTo(this.map);
         this.barGroup = L.featureGroup().addTo(this.map);
+        this.stationGroup = L.featureGroup().addTo(this.map);
+
+        for(let feature of stops.features) {
+            const { name } = feature.properties;
+            const coords = feature.geometry.coordinates;
+            this.stationCoords.set(name, L.latLng(coords[1], coords[0]));
+        }
 
         this.map.on("zoomend", this.onZoomEnd);
         $("#closeInfoPanel").on("click", () => this.closeInfo());
@@ -72,10 +87,8 @@ export class Train {
         else
             barWidth = 30;
 
-        const zoom = this.map.getZoom();
-        let scaledBarWidth = barWidth * (zoom / 18);
-        if(scaledBarWidth < 3) scaledBarWidth = 3;
-        if(scaledBarWidth > 30) scaledBarWidth = 30;
+        const scaledBarWidth = this.getScaledBarWidth(barWidth);
+        let bar, train;
 
         if(!this.destinations.has(lastStation)) {
             const lastSegment = path.at(-1);
@@ -84,25 +97,31 @@ export class Train {
             let bearing = GeometryUtil.bearing(penultimateVertex, lastVertex);
             if(bearing < 0) bearing += 360;
 
-            L.marker(lastVertex, { rotationAngle: bearing, rotationOrigin: "center center", icon: icons.dTrain(1), 
-                interactive: false }).addTo(this.trainGroup);
+            train = L.marker(lastVertex, { rotationAngle: bearing, rotationOrigin: "center center", icon: icons.dTrain(1), 
+                interactive: false });
 
             const barGap = 2;
-            const iconGap = barGap * (zoom / 18) ;
-            const bar = L.marker(lastVertex, { rotationAngle: bearing, rotationOrigin: "center center", barWidth, barGap, bearing, isCancelled, isPartial, causeGroup,
-                icon: icons.bar(scaledBarWidth, iconGap, bearing, isCancelled, isPartial, causeGroup)}).addTo(this.barGroup);
+            const iconGap = this.getIconGap(barGap);
+            bar = L.marker(lastVertex, { rotationAngle: bearing, rotationOrigin: "center center", barWidth, barGap, bearing, isCancelled, isPartial, causeGroup,
+                icon: icons.bar(scaledBarWidth, iconGap, bearing, isCancelled, isPartial, causeGroup)});
             bar.on("click", () => this.showInfo(bar, service));
             
-            this.destinations.set(lastStation, {barGap, position: lastVertex, bearing});
+            this.destinations.set(lastStation, {position: lastVertex, bearing, bars: [bar]});
         }
         else {
             const destination = this.destinations.get(lastStation);
-            const barGap = destination.barGap + 0.6;
-            const iconGap = barGap * (zoom / 18) ;
-            const bar = L.marker(destination.position, { rotationAngle: destination.bearing, rotationOrigin: "center center", barWidth, barGap, bearing: destination.bearing, isCancelled, isPartial, causeGroup,
-                icon: icons.bar(scaledBarWidth, iconGap, destination.bearing, isCancelled, isPartial, causeGroup) }).addTo(this.barGroup);
-            destination.barGap = barGap;
+            const addedBars = destination.bars.filter((bar) => this.map.hasLayer(bar));
+            const barGap = 2 + (addedBars.length * 0.6) ;
+            const iconGap = this.getIconGap(barGap);
+            bar = L.marker(destination.position, { rotationAngle: destination.bearing, rotationOrigin: "center center", barWidth, barGap, bearing: destination.bearing, isCancelled, isPartial, causeGroup,
+                icon: icons.bar(scaledBarWidth, iconGap, destination.bearing, isCancelled, isPartial, causeGroup) });
             bar.on("click", () => this.showInfo(bar, service));
+            destination.bars.push(bar);
+        }
+
+        if(!this.disruptionType || this.disruptionType == causeGroup) {
+            if(train) train.addTo(this.trainGroup);
+            bar.addTo(this.barGroup);
         }
     }
 
@@ -115,18 +134,67 @@ export class Train {
 
         this.barGroup.eachLayer((layer) => {
             const { barWidth, barGap, bearing, isCancelled, isPartial, causeGroup } = layer.options;
-            let scaledBarWidth = barWidth * (zoom / 18);
-            if(scaledBarWidth < 3) scaledBarWidth = 3;
-            if(scaledBarWidth > 30) scaledBarWidth = 30;
+            const scaledBarWidth = this.getScaledBarWidth(barWidth);
 
-            const iconGap = barGap * (zoom / 18) ;
+            const iconGap = this.getIconGap(barGap);
             layer.setIcon(icons.bar(scaledBarWidth, iconGap, bearing, isCancelled, isPartial, causeGroup))
         });
 
         if(this.pulseMarker && this.map.hasLayer(this.pulseMarker)) {
             const { barGap, bearing } = this.pulseMarker.options;
-            const iconGap = barGap * (zoom / 18) ;
+            const iconGap = this.getIconGap(barGap);
             this.pulseMarker.setIcon(icons.pulseIcon(iconGap, bearing));
+        }
+
+        this.stationGroup.clearLayers();
+        this.stationBounds = [];
+        for(let label of this.stationLabels) {
+            const labelBounds = this.getBounds(label.getLatLng());
+            const isIntersecting = this.doesLabelIntersect(labelBounds);
+
+            if(!isIntersecting) {
+                this.stationGroup.addLayer(label);
+            }
+
+            // Push labelBounds to the array after checking intersection
+            this.stationBounds.push(labelBounds)
+        }
+    }
+
+    /** Toggle disrupted services based on disruption type */
+    toggleDisruption(disruptionType) {
+        this.trainGroup.clearLayers();
+        this.barGroup.clearLayers();
+        this.disruptionType = disruptionType;
+
+        for(let destination of this.destinations.values()) {
+            const { position, bearing, bars } = destination;
+            let skippedBarsCount = 0;
+            let isTrainPlotted = false;
+
+            for(let i=0; i<bars.length; i++) {
+                const bar = bars[i];
+                const {barWidth, isCancelled, isPartial, causeGroup} = bar.options;
+                if(disruptionType && disruptionType != causeGroup) {
+                    skippedBarsCount++;
+                    continue;
+                }
+
+                if(!isTrainPlotted) {
+                    L.marker(position, { rotationAngle: bearing, rotationOrigin: "center center", 
+                        icon: icons.dTrain(1), interactive: false }).addTo(this.trainGroup);
+                    isTrainPlotted = true;
+                }
+
+                const scaledBarWidth = this.getScaledBarWidth(barWidth);
+                const barGap = 2 + ((i - skippedBarsCount) * 0.6) ;
+                const iconGap = this.getIconGap(barGap);
+
+                const icon = icons.bar(scaledBarWidth, iconGap, bearing, isCancelled, isPartial, causeGroup);
+                bar.setIcon(icon);
+                bar.options.barGap = barGap;
+                bar.addTo(this.barGroup);
+            }
         }
     }
 
@@ -181,12 +249,13 @@ export class Train {
         $(".info-panel").show();
         this.disruptedLines.flash(rdtLines);
         this.showTrainPath(stations);
+        this.showStations(stations);
 
 
         // Highlight clicked bar
         const pulsePosition = barMarker.getLatLng();
         const { barGap, bearing } = barMarker.options;
-        const iconGap = barGap * (this.map.getZoom() / 18) ;
+        const iconGap = this.getIconGap(barGap);
 
         if(this.pulseMarker && this.map.hasLayer(this.pulseMarker)) this.map.removeLayer(this.pulseMarker);            
         this.pulseMarker = L.marker(pulsePosition, { barGap, bearing, icon: icons.pulseIcon(iconGap, bearing), interactive: false }).addTo(this.map);
@@ -197,7 +266,8 @@ export class Train {
         MareyChart.destroy();
         this.disruptedLines.stopFlash();
         this.hideTrainPath();
-        if(this.pulseMarker && this.map.hasLayer(this.pulseMarker)) this.map.removeLayer(this.pulseMarker);            
+        if(this.pulseMarker && this.map.hasLayer(this.pulseMarker)) this.map.removeLayer(this.pulseMarker);
+        this.clearStationLabels();
     }
 
     clear() {
@@ -205,6 +275,13 @@ export class Train {
         this.barGroup.clearLayers();
         this.destinations.clear();
         this.hideTrainPath();
+        this.clearStationLabels();
+    }
+
+    clearStationLabels() {
+        this.stationGroup.clearLayers();
+        this.stationLabels = [];
+        this.stationBounds = [];
     }
 
     showTrainPath(stations) {
@@ -231,6 +308,61 @@ export class Train {
         if(this.trainPath && this.map.hasLayer(this.trainPath)) {
             this.map.removeLayer(this.trainPath);
         }
+    }
+
+    showStations(stations) {
+        this.clearStationLabels();
+
+        for(let station of stations) {
+            const { station_name } = station;
+            const stationPosition = this.stationCoords.get(station_name);
+            if(!stationPosition) continue;
+
+            const label = L.marker(stationPosition, {
+                icon: L.divIcon({ html: station_name, className: "station-name", iconSize: [80, 20] }),
+                interactive: false
+            });
+            this.stationLabels.push(label);
+
+            const labelBounds = this.getBounds(stationPosition);
+            const isIntersecting = this.doesLabelIntersect(labelBounds);
+    
+            if(!isIntersecting) {
+                this.stationGroup.addLayer(label);
+            }
+    
+            this.stationBounds.push(labelBounds);
+        }
+    }
+
+    doesLabelIntersect(labelBounds) {
+        for(let bounds of this.stationBounds) {
+            if(labelBounds.intersects(bounds)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    
+    getBounds(position) {
+        const topLeft = this.map.latLngToContainerPoint(position);
+        const bottomRight = L.point(topLeft.x + 80, topLeft.y + 20);
+        const labelBounds = L.bounds(topLeft, bottomRight);
+
+        return labelBounds;
+    }
+
+    getScaledBarWidth(barWidth) {
+        let scaledBarWidth = barWidth * (this.map.getZoom() / 18);
+        if(scaledBarWidth < 3) scaledBarWidth = 3;
+        if(scaledBarWidth > 30) scaledBarWidth = 30;
+
+        return scaledBarWidth;
+    }
+
+    getIconGap(barGap) {
+        return barGap * (this.map.getZoom() / 18);
     }
     
 }

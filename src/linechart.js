@@ -7,8 +7,11 @@ import dayjs from "dayjs";
 
 export class LineChart {
 
-    constructor(onDateSelect) {
+    selectedDisruptionType = "";
+
+    constructor(onDateSelect, onDisruptionTypeSelect) {
         this.onDateSelect = onDateSelect;
+        this.onDisruptionTypeSelect = onDisruptionTypeSelect;
 
         // Fetch data from JSON file
         fetch('assets/data/summary.json')
@@ -61,17 +64,11 @@ export class LineChart {
         chart.legend = new am4charts.Legend();
         chart.legend.fontSize = 14;
         chart.legend.itemContainers.template.togglable = false;
-        // chart.legend.itemContainers.template.events.on("hit", function (ev) {
-        //     let targetName = ev.target.dataItem.dataContext.name;
-        //     chart.series.each(function (item) {
-        //         if (targetName != item.name) {
-        //             item.disabled = true;
-        //         }
-        //         else {
-        //             item.disabled = false;
-        //         }
-        //     });
-        // });
+        chart.legend.itemContainers.template.events.on("hit", (ev) => {
+            let targetName = ev.target.dataItem.dataContext.name;
+            this.selectedDisruptionType = targetName == this.selectedDisruptionType ? "" : targetName;
+            this.onDisruptionTypeSelect(this.selectedDisruptionType.toLowerCase());
+        });
         chart.legend.itemContainers.template.events.on("hit", function (ev) {
             let targetName = ev.target.dataItem.dataContext.name;
             let clickedSeries = null;

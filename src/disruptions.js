@@ -27,6 +27,18 @@ export class DisruptedLines {
         this.map = map;
         this.network = network;
         this.flashGroup.addTo(map);
+        this.disruptionFeatureGroups = new Map([
+            ["weather", L.featureGroup().addTo(map)],
+            ["accidents", L.featureGroup().addTo(map)],
+            ["infrastructure", L.featureGroup().addTo(map)],
+            ["unknown", L.featureGroup().addTo(map)],
+            ["rolling stock", L.featureGroup().addTo(map)],
+            ["external", L.featureGroup().addTo(map)],
+            ["staff", L.featureGroup().addTo(map)],
+            ["logistical", L.featureGroup().addTo(map)],
+            ["engineering work", L.featureGroup().addTo(map)]
+        ]);
+
         this.init();
         $("#discloseInfoPanel").on("click", () => this.closeInfo());
     }
@@ -95,8 +107,10 @@ export class DisruptedLines {
             }
 
             const lineOptions = { color: colors[causeGroup] || "#f00", weight: weight };
+            const disruptionFeatureGroup = this.disruptionFeatureGroups.get(causeGroup);
+            if(!disruptionFeatureGroup) continue;
 
-            const featureGroup = L.featureGroup().addTo(this.map);
+            const featureGroup = L.featureGroup().addTo(disruptionFeatureGroup);
             if(path) {
                 const pathLine = L.polyline(path, lineOptions).addTo(featureGroup);
                 pathLine.on("click", () => this.showInfo(disruption));
@@ -116,7 +130,10 @@ export class DisruptedLines {
     clear(timestamp) {
         for(let [disruptionId, data] of this.plottedDisruptions.entries()) {
             if(timestamp.isBefore(data.disruption.startTime) || timestamp.isAfter(data.disruption.endTime)) {
-                this.map.removeLayer(data.featureGroup);
+                const disruptionFeatureGroup = this.disruptionFeatureGroups.get(data.disruption.causeGroup);
+                if(!disruptionFeatureGroup) continue;
+
+                disruptionFeatureGroup.removeLayer(data.featureGroup);
                 this.plottedDisruptions.delete(disruptionId);
             }
         }
@@ -124,12 +141,32 @@ export class DisruptedLines {
 
     clearAll() {
         for(let data of this.plottedDisruptions.values()) {
-            this.map.removeLayer(data.featureGroup);
+            const disruptionFeatureGroup = this.disruptionFeatureGroups.get(data.disruption.causeGroup);
+            if(!disruptionFeatureGroup) continue;
+            
+            disruptionFeatureGroup.removeLayer(data.featureGroup);
         }
 
         this.plottedDisruptions.clear();
         this.filteredDisruptions = [];
         this.stopFlash();
+    }
+
+    /** Toggle disrupted segments based on disruption type */
+    toggleDisruption(disruptionType) {
+        for(let [type, disruptionFeatureGroup] of this.disruptionFeatureGroups.entries()) {
+            if(disruptionType == "") {
+                if(!this.map.hasLayer(disruptionFeatureGroup)) this.map.addLayer(disruptionFeatureGroup);
+                continue;
+            }
+
+            if(disruptionType != type) {
+                if(this.map.hasLayer(disruptionFeatureGroup)) this.map.removeLayer(disruptionFeatureGroup);
+            }
+            else {
+                if(!this.map.hasLayer(disruptionFeatureGroup)) this.map.addLayer(disruptionFeatureGroup);
+            }
+        }
     }
 
     flash(rdt_lines) {

@@ -52,13 +52,17 @@ export class Player {
         this.dateDisplay.text(this.fromTimestamp.format("DD MMM, YYYY"));
 
         this.init();
-        new LineChart(this.setDate);
+        new LineChart(this.setDate, (disruptionType) => {
+            this.disruptedLines.toggleDisruption(disruptionType);
+            this.trainRenderer.toggleDisruption(disruptionType);
+        });
     }
 
     async init() {
-        await Promise.all([this.getServiceDisruptions(), this.createNetwork()]);
+        await this.getServiceDisruptions();
+        const { stops } = await this.createNetwork();
         this.disruptedLines = new DisruptedLines(this.map, this.railwayNetwork);
-        this.trainRenderer = new Train(this.map, this.railwayNetwork, this.disruptedLines);
+        this.trainRenderer = new Train(this.map, this.railwayNetwork, this.disruptedLines, stops);
     }
 
     async getServiceDisruptions() {
@@ -100,6 +104,7 @@ export class Player {
         this.railwayNetwork.addNodes(stops);
         this.railwayNetwork.addEdges(segments);
         MareyChart.initStations(stops);
+        return { stops, segments };
     }
 
     setDate = (date) => {

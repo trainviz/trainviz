@@ -6,6 +6,7 @@ import { RailwayNetwork } from "./network";
 import { DisruptedLines } from "./disruptions";
 import MareyChart from "./marey";
 import { LineChart } from "./linechart";
+import Hotspot from "./hotspot";
 
 
 export class Player {
@@ -14,12 +15,6 @@ export class Player {
     playbackSpeed = 5;
 
     MAPBOX_TOKEN = "pk.eyJ1Ijoic2FuZGh5YS10dXdpZW4iLCJhIjoiY201eHdyNzcyMDAyODJpc2ZpZGV5YWEwZSJ9.MrTVCgLsbik7V5eBVOHQKA";
-
-    /**
-     - Key - arr_time of last station
-     - Value - disrupted service array
-     */
-    disruptedServices = new Map();
 
     railwayNetwork = new RailwayNetwork();
 
@@ -55,23 +50,33 @@ export class Player {
         new LineChart(this.setDate, (disruptionType) => {
             this.disruptedLines.toggleDisruption(disruptionType);
             this.trainRenderer.toggleDisruption(disruptionType);
+
+            if(disruptionType) {
+                const disruptionTypeLabel = disruptionType.charAt(0).toUpperCase() + disruptionType.slice(1);
+                $("#disruptionTypeLabel").text(disruptionTypeLabel).show();
+            }
+            else {
+                $("#disruptionTypeLabel").hide();
+            }
         });
     }
 
     async init() {
-        await this.getServiceDisruptions();
         const { stops } = await this.createNetwork();
         this.disruptedLines = new DisruptedLines(this.map, this.railwayNetwork);
         this.trainRenderer = new Train(this.map, this.railwayNetwork, this.disruptedLines, stops);
+        this.hotspot = new Hotspot(this.map, stops);
+        await this.getServiceDisruptions();
     }
 
     async getServiceDisruptions() {
         const date = this.fromTimestamp.format("YYYY-MM-DD");
-        this.disruptedServices.clear();
+        const disruptedServicesData = new Map();
 
         try {
             const response = await fetch(`assets/data/services-disruptions/${date}.json`);
             const data = await response.json();
+            let id = 0;
     
             for(let trainNo in data) {
                 const journeys = data[trainNo];
@@ -81,17 +86,24 @@ export class Player {
     
                     const { disruption, stations } = journey;
                     const arrTime = stations.at(-1).arr_time;
-                    const service = { trainNo, disruption, stations };
+                    const lastStation = stations.at(-1).station_name;
+                    const service = { trainNo, disruption, stations, id };
     
-                    const disruptedServices = this.disruptedServices.get(arrTime);
+                    const disruptedServices = disruptedServicesData.get(arrTime);
                     if(disruptedServices) {
                         disruptedServices.push(service);
                     }
                     else {
-                        this.disruptedServices.set(arrTime, [service]);
+                        disruptedServicesData.set(arrTime, [service]);
                     }
+
+                    id++;
+                    this.hotspot.addStation(lastStation);
                 }
             }
+
+            this.trainRenderer.setDisruptedServices(disruptedServicesData);
+            this.hotspot.plot();
         }
         catch(err) {
             console.log(err);
@@ -115,6 +127,7 @@ export class Player {
         this.updateTimer();
         this.disruptedLines.clearAll();
         this.trainRenderer.clear();
+        this.hotspot.clear();
 
         this.disruptedLines.setDate(date);
         this.getServiceDisruptions();
@@ -130,18 +143,20 @@ export class Player {
     play() {
         this.animationHandler = setInterval(this.render, 1000 * (1/this.playbackSpeed));
         $("#playPauseButton").text("Pause");
+        this.hotspot.hide();
     }
 
     pause() {
         clearInterval(this.animationHandler);
         $("#playPauseButton").text("Play");
+        this.hotspot.show();
     }
 
     render = () => {
         this.currentTimestamp = this.currentTimestamp.add(1, "minute");
 
         this.updateTimer();
-        this.renderTrains();
+        this.trainRenderer.render(this.currentTimestamp);
         this.disruptedLines.render(this.currentTimestamp);
 
         if(this.currentTimestamp.date() != this.fromTimestamp.date()) {
@@ -158,14 +173,4 @@ export class Player {
         $(".slider-value").css("left", `calc(${progressPercentage}% - 30px)`);
         $(".slider-value").css("transform", `translate(- calc(${progressPercentage}% - 30px), 0%);`);
     }
-
-    renderTrains() {
-        const disruptedServices = this.disruptedServices.get(this.currentTimestamp.format("YYYY-MM-DD HH:mm:ss"));
-        if(!disruptedServices) return;
-
-        for(let service of disruptedServices) {
-            this.trainRenderer.render(service);
-        }
-    }
-
 }

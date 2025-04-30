@@ -35,6 +35,8 @@
                   <input type="range" min="0" max="1440" value="0" id="slider">
                   <span class="slider-value">00:00</span>
                 </div>
+
+                <div class="disruption-type" id="disruptionTypeLabel"></div>
   
                 <div class="info-panel">
                   <div class="info-container">
@@ -51,12 +53,17 @@
                     <div class="badge rounded-pill text-bg-danger py-2" id="completeCancellation">Completely cancelled</div>
                     <div class="badge rounded-pill text-bg-danger py-2" id="partlyCancellation">Partly cancelled</div>
   
-                    <div><label>Disrupted Segment:</label> <span id="rdtLines"></span></div>
-                    <div><label>Disrupted Stations:</label> <span id="disruptedStations"></span></div>
-                    <div id="cancelledStationsField"><label>Cancelled Stations:</label> <span id="cancelledStations"></span></div>
                     <div><label>Cause:</label> <span id="cause"></span></div>
                     <div><label>Cause group:</label> <span id="causeGroup"></span></div>
                     <div id="maxDelayField"><label>Maximum Delay:</label> <span id="maxDelay"></span> mins</div>
+
+                    <button class="btn fw-bold" id="moreInfoButton">Show more</button>
+                    <div class="more-info">
+                      <div><label>Disrupted Segment:</label> <span id="rdtLines"></span></div>
+                      <div><label>Disrupted Stations:</label> <span id="disruptedStations"></span></div>
+                      <div id="cancelledStationsField"><label>Cancelled Stations:</label> <span id="cancelledStations"></span></div>
+                      <button class="btn fw-bold w-100" id="lessInfoButton">Show less</button>
+                    </div>
                   </div>
                 </div>
 

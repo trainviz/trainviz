@@ -34,7 +34,7 @@ header {
     background-color: transparent !important;
 }
 
-.clock {
+.clock, .disruption-type {
     position: absolute;
     bottom: 10px;
     left: 20px;
@@ -46,6 +46,13 @@ header {
     z-index: 1000;
     text-shadow: 0 0 40px #0fa;
 }
+
+.disruption-type {
+    left: unset;
+    right: 20px;
+    display: none;
+}
+
 
 .slider {
     z-index: 1000;
@@ -105,6 +112,10 @@ header {
     gap: 0.5rem;
     font-size: 1rem;
     text-transform: capitalize;
+}
+
+.info-container .more-info {
+    display: none;
 }
 
 .dis-info-container {
@@ -316,6 +327,10 @@ header {
     margin-top: 15px;
 }
 
+/* ----------------------------------------------------------- Leaflet heatmap ------------------------------------------------------------ */
+canvas.leaflet-heatmap-layer {
+    z-index: 99;
+}
 
 /* ----------------------------------------------------------- Marey & line chart ------------------------------------------------------------ */
 #mareyChartContainer {

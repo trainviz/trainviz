@@ -7,10 +7,17 @@ import { RailwayNetwork } from "./network";
 import { DisruptedLines } from "./disruptions";
 import $ from "jquery";
 import MareyChart from "./marey";
-
+import dayjs from "dayjs";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+dayjs.extend(isSameOrBefore);
 
 export class Train {
 
+    /**
+     - Key - arr_time of last station
+     - Value - disrupted service array
+    */
+    disruptedServices = new Map();
 
     /**
      - Key - Station name
@@ -31,6 +38,8 @@ export class Train {
     stationCoords = new Map();
     stationLabels = [];
     stationBounds = [];
+
+    renderedServiceIds = new Set();
 
     /**
      * 
@@ -54,11 +63,32 @@ export class Train {
         }
 
         this.map.on("zoomend", this.onZoomEnd);
+        $("#moreInfoButton").on("click", () => this.showMoreInfo());
+        $("#lessInfoButton").on("click", () => this.hideMoreInfo());
         $("#closeInfoPanel").on("click", () => this.closeInfo());
     }
 
-    render(service) {
-        const { stations } = service;
+    setDisruptedServices(data) {
+        this.disruptedServices = data;
+    }
+
+    /**
+     * @param {dayjs.Dayjs} timestamp 
+    */
+    render(timestamp) {
+        this.clearInvalidServices(timestamp);
+        for(let [arrTime, services] of this.disruptedServices) {
+            const arrivalTime = dayjs(arrTime);
+            if(arrivalTime.isSameOrBefore(timestamp)) {
+                services.forEach((service) => this.renderService(arrTime, service));
+            }
+        }
+    }
+
+    renderService(arrTime, service) {
+        const { id, stations } = service;
+        if(this.renderedServiceIds.has(id)) return;
+
         const causeGroup = service.disruption.cause_group;
         const isCancelled = stations[0].complete_cancellation == "true";
         const maxDelay = parseInt(stations[0].max_delay);
@@ -74,10 +104,7 @@ export class Train {
         }
 
         const path = this.railwayNetwork.getPath(penultimateStation, lastStation);
-        if(!path) {
-            console.log(`${penultimateStation} - ${lastStation}`);
-            return;
-        }
+        if(!path) return;
         
         let barWidth;
         if(maxDelay < 5)
@@ -102,8 +129,19 @@ export class Train {
 
             const barGap = 2;
             const iconGap = this.getIconGap(barGap);
-            bar = L.marker(lastVertex, { rotationAngle: bearing, rotationOrigin: "center center", barWidth, barGap, bearing, isCancelled, isPartial, causeGroup,
-                icon: icons.bar(scaledBarWidth, iconGap, bearing, isCancelled, isPartial, causeGroup)});
+            bar = L.marker(lastVertex, {
+                id,
+                rotationAngle: bearing, 
+                rotationOrigin: "center center", 
+                barWidth, 
+                barGap, 
+                bearing, 
+                isCancelled, 
+                isPartial, 
+                causeGroup,
+                arrTime,
+                icon: icons.bar(scaledBarWidth, iconGap, bearing, isCancelled, isPartial, causeGroup)
+            });
             bar.on("click", () => this.showInfo(bar, service));
             
             this.destinations.set(lastStation, {position: lastVertex, bearing, bars: [bar]});
@@ -113,8 +151,19 @@ export class Train {
             const addedBars = destination.bars.filter((bar) => this.map.hasLayer(bar));
             const barGap = 2 + (addedBars.length * 0.6) ;
             const iconGap = this.getIconGap(barGap);
-            bar = L.marker(destination.position, { rotationAngle: destination.bearing, rotationOrigin: "center center", barWidth, barGap, bearing: destination.bearing, isCancelled, isPartial, causeGroup,
-                icon: icons.bar(scaledBarWidth, iconGap, destination.bearing, isCancelled, isPartial, causeGroup) });
+            bar = L.marker(destination.position, {
+                id,
+                rotationAngle: destination.bearing, 
+                rotationOrigin: "center center", 
+                barWidth, 
+                barGap, 
+                bearing: destination.bearing, 
+                isCancelled, 
+                isPartial, 
+                causeGroup,
+                arrTime,
+                icon: icons.bar(scaledBarWidth, iconGap, destination.bearing, isCancelled, isPartial, causeGroup) 
+            });
             bar.on("click", () => this.showInfo(bar, service));
             destination.bars.push(bar);
         }
@@ -122,6 +171,32 @@ export class Train {
         if(!this.disruptionType || this.disruptionType == causeGroup) {
             if(train) train.addTo(this.trainGroup);
             bar.addTo(this.barGroup);
+        }
+
+        this.renderedServiceIds.add(id);
+    }
+
+    /** 
+     * @param {dayjs.Dayjs} timestamp 
+    */
+    clearInvalidServices(timestamp) {
+        let isInvalid = false;
+
+        for(let data of this.destinations.values()) {
+            const { bars } = data;
+            for(let bar of bars) {
+                const { arrTime } = bar.options;
+                if(dayjs(arrTime).isAfter(timestamp)) {
+                    isInvalid = true;
+                    break;
+                };
+            }
+
+            if(isInvalid) break;
+        }
+
+        if(isInvalid) {
+            this.clear();
         }
     }
 
@@ -261,8 +336,20 @@ export class Train {
         this.pulseMarker = L.marker(pulsePosition, { barGap, bearing, icon: icons.pulseIcon(iconGap, bearing), interactive: false }).addTo(this.map);
     }
 
+    showMoreInfo() {
+        $("#moreInfoButton").hide();
+        $(".more-info").show();
+    }
+
+    hideMoreInfo() {
+        $("#moreInfoButton").show();
+        $(".more-info").hide();
+    }
+
     closeInfo() {
+        this.hideMoreInfo();
         $(".info-panel").hide();
+        
         MareyChart.destroy();
         this.disruptedLines.stopFlash();
         this.hideTrainPath();
@@ -276,6 +363,7 @@ export class Train {
         this.destinations.clear();
         this.hideTrainPath();
         this.clearStationLabels();
+        this.renderedServiceIds.clear();
     }
 
     clearStationLabels() {

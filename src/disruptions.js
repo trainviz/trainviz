@@ -18,7 +18,6 @@ export class DisruptedLines {
     flashGroup = L.featureGroup();
     flashHandler;
 
-
     /**
      * @param { L.Map } map
      * @param { RailwayNetwork } network
@@ -27,6 +26,9 @@ export class DisruptedLines {
         this.map = map;
         this.network = network;
         this.flashGroup.addTo(map);
+        this.flashPane = this.map.createPane();
+        this.flashPane.style.zIndex = 3000;
+
         this.disruptionFeatureGroups = new Map([
             ["weather", L.featureGroup().addTo(map)],
             ["accidents", L.featureGroup().addTo(map)],
@@ -184,7 +186,7 @@ export class DisruptedLines {
             const path = this.network.getPath(from, to);
             const reversePath = this.network.getPath(to, from);
 
-            const lineOptions = { color: "#f00", interactive: false };
+            const lineOptions = { color: "#f00", interactive: false, pane: this.flashPane };
             if(path) L.polyline(path, lineOptions).addTo(this.flashGroup);
             if(reversePath) L.polyline(reversePath, lineOptions).addTo(this.flashGroup);
         }

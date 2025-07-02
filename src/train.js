@@ -442,7 +442,7 @@ export class Train {
     }
 
     getScaledBarWidth(barWidth) {
-        let scaledBarWidth = barWidth * (this.map.getZoom() / 18);
+        let scaledBarWidth = barWidth * (this.map.getZoom() / 12);
         if(scaledBarWidth < 3) scaledBarWidth = 3;
         if(scaledBarWidth > 30) scaledBarWidth = 30;
 
